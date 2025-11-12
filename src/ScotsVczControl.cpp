@@ -1,6 +1,6 @@
-#include "ScotsVczFranka.hpp"
+#include "ScotsVczControl.hpp"
 
-ScotsVczFranka::ScotsVczFranka(const string& filename) {
+ScotsVczControl::ScotsVczControl(const string& filename) {
     cout << "Loading controller from CSV: " << filename << "..." << endl;
     ifstream file(filename);
 
@@ -46,23 +46,7 @@ ScotsVczFranka::ScotsVczFranka(const string& filename) {
     cout << "Controller loaded successfully. Total " << m_controller_map.size() << " unique states." << endl;
 }
 
-vector<arma::vec> ScotsVczFranka::getValidControls(const arma::vec& x) const {
-    if (x.n_elem != this->STATE_DIM) {
-        throw runtime_error("Input state vector dimension mismatch.");
-    }
-    string key = ScotsVczFranka::createStateKey(x, this->STATE_PRECISION);
-    auto it = m_controller_map.find(key);
-
-    if (it == m_controller_map.end()) {
-        stringstream os;
-        os << "\nscots::StaticController: state " << x.t() 
-           << " is out of winning domain: no progress possible. (Key: " << key << ")";
-        throw runtime_error(os.str());
-    }
-    return it->second;
-}
-
-string ScotsVczFranka::createStateKey(const arma::vec& x, int precision) {
+string ScotsVczControl::createStateKey(const arma::vec& x, int precision) {
     stringstream ss;
     ss << fixed << setprecision(precision);
     for (size_t i = 0; i < x.n_elem; ++i) {
@@ -74,7 +58,7 @@ string ScotsVczFranka::createStateKey(const arma::vec& x, int precision) {
     return ss.str();
 }
 
-void ScotsVczFranka::printInputs(const string& title, const vector<arma::vec>& inputs) {
+void ScotsVczControl::printInputs(const string& title, const vector<arma::vec>& inputs) {
     cout << title << endl;
     if (inputs.empty()) {
         cout << "  (No valid inputs)" << endl;
@@ -83,4 +67,20 @@ void ScotsVczFranka::printInputs(const string& title, const vector<arma::vec>& i
     for (size_t i = 0; i < inputs.size(); ++i) {
         cout << "  Input " << i + 1 << ": " << inputs[i].t();
     }
+}
+
+vector<arma::vec> ScotsVczControl::getValidControls(const arma::vec& x) const {
+    if (x.n_elem != this->STATE_DIM) {
+        throw runtime_error("Input state vector dimension mismatch.");
+    }
+    string key = ScotsVczControl::createStateKey(x, this->STATE_PRECISION);
+    auto it = m_controller_map.find(key);
+
+    if (it == m_controller_map.end()) {
+        stringstream os;
+        os << "\nscots::StaticController: state " << x.t() 
+           << " is out of winning domain: no progress possible. (Key: " << key << ")";
+        throw runtime_error(os.str());
+    }
+    return it->second;
 }

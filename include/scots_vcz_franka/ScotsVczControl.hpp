@@ -1,5 +1,5 @@
-#ifndef SCOTS_VCZ_FRANKA_HPP
-#define SCOTS_VCZ_FRANKA_HPP
+#ifndef SCOTS_VCZ_CONTROL_HPP
+#define SCOTS_VCZ_CONTROL_HPP
 
 #include <map>
 #include <string>
@@ -11,7 +11,7 @@
 
 using namespace std;
 
-class ScotsVczFranka {
+class ScotsVczControl {
     private:
         map<string, vector<arma::vec>> m_controller_map;
 
@@ -20,7 +20,7 @@ class ScotsVczFranka {
         int INPUT_DIM;
         int STATE_PRECISION;
 
-        ScotsVczFranka(const string& filename);
+        ScotsVczControl(const string& filename);
         vector<arma::vec> getValidControls(const arma::vec& x) const;
         static string createStateKey(const arma::vec& x, int precision);
         void printInputs(const string& title, const vector<arma::vec>& inputs);

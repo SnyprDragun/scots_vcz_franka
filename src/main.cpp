@@ -1,10 +1,10 @@
-#include "ScotsVczFranka.hpp"
+#include "ScotsVczControl.hpp"
 
 int main() {
     string filename = "/home/focaslab/SCOTS/SCOTS_ros2_v2/SCOTS/examples/franka/new/xyz_roll_pitch_yaw.csv"; 
 
     try {
-        ScotsVczFranka controller(filename);
+        ScotsVczControl controller(filename);
 
         arma::vec x(controller.STATE_DIM); 
         x[0] = 0.6;     
