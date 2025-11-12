@@ -1,4 +1,4 @@
-#SCOTS-VCZ Aided Manipulator Motion
+# SCOTS-VCZ Aided Manipulator Motion
 
 To Compile:
 ```
