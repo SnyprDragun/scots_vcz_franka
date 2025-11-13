@@ -22,12 +22,12 @@ src/custom_controller.cpp
 <class name="franka_example_controllers/CustomController"
         type="franka_example_controllers::CustomController" base_class_type="controller_interface::ControllerInterface">
     <description>
-        The scots vcz example controller is a custom EE trajectory tracker.
+        Custom Message.
     </description>
 </class>
 ```
 
-NOTE: `CustomController` refers to the main class inside `custom_controller.cpp`
+**NOTE**: `CustomController` refers to the main class inside `custom_controller.cpp`
 
 
 ### For Simulation using gazebo and rviz
@@ -42,8 +42,14 @@ cd franka_ros2_ws/src/franka_gazebo/franka_gazebo_bringup
 
 * Next we navigate to the `config` folder which contains the `franka_gazebo_controllers.yaml` file. Then we add the following lines under `controller_manager: -> ros__parameters:` :
 ```
-    custom_example_controller:
-      type: franka_example_controllers/CustomController
+custom_example_controller:
+    type: franka_example_controllers/CustomController
+```
+
+* Finally we build these two packages
+```
+cd franka_ros2_ws/
+colcon build --packages-select franka_example_controllers franka_gazebo_bringup
 ```
 
 And you're all set to launch your custom controller using:
