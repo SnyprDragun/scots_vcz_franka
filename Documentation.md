@@ -61,4 +61,4 @@ ros2 launch franka_gazebo_bringup gazebo_custom_controller_example.launch.py loa
 ```
 
 ### For Hardware Implementation
---pending--
+--to do--
