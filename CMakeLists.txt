@@ -7,9 +7,28 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
+
+# --- Controller Executable ---
+# Add the executable target for the C++ node
+add_executable(FrankaSim src/FrankaSim.cpp)
+
+# Link the executable against the necessary libraries
+ament_target_dependencies(FrankaSim
+  rclcpp
+  sensor_msgs
+  std_msgs
+)
+
+# Install the executable
+install(TARGETS FrankaSim
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
