@@ -14,12 +14,31 @@ namespace franka_example_controllers {
   controller_interface::InterfaceConfiguration ScotsVCZExampleController::state_interface_configuration() const {
     controller_interface::InterfaceConfiguration config;
     config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
+    
+    // Joint position interfaces
     for (int i = 1; i <= num_joints_; ++i) {
       config.names.push_back(arm_id_ + "_joint" + to_string(i) + "/position");
     }
+    // Joint velocity interfaces
     for (int i = 1; i <= num_joints_; ++i) {
       config.names.push_back(arm_id_ + "_joint" + to_string(i) + "/velocity");
     }
+    
+    // NEW: End-effector pose interfaces (if available)
+    // These interfaces need to be published by the robot/simulation
+    // For Gazebo, you may need to add these to your URDF/controller configuration
+    
+    // Position (x, y, z)
+    config.names.push_back(arm_id_ + "_ee/position.x");
+    config.names.push_back(arm_id_ + "_ee/position.y");
+    config.names.push_back(arm_id_ + "_ee/position.z");
+    
+    // Orientation (quaternion: x, y, z, w)
+    config.names.push_back(arm_id_ + "_ee/orientation.x");
+    config.names.push_back(arm_id_ + "_ee/orientation.y");
+    config.names.push_back(arm_id_ + "_ee/orientation.z");
+    config.names.push_back(arm_id_ + "_ee/orientation.w");
+    
     return config;
   }
 
@@ -33,6 +52,51 @@ namespace franka_example_controllers {
 
       joint_positions_current_[i] = position_interface.get_value();
       joint_velocities_current_[i] = velocity_interface.get_value();
+    }
+  }
+
+  void ScotsVCZExampleController::update_ee_pose_from_interfaces() {
+    // Try to read end-effector pose from state interfaces
+    // Interfaces start at index: num_joints_ * 2 (after all joint pos/vel)
+    
+    try {
+      size_t ee_start_idx = num_joints_ * 2;
+      
+      // Check if we have enough interfaces
+      if (state_interfaces_.size() < ee_start_idx + 7) {
+        if (!ee_interface_available_) {
+          RCLCPP_WARN_ONCE(get_node()->get_logger(), 
+                          "End-effector pose interfaces not available. Falling back to FK computation.");
+        }
+        ee_interface_available_ = false;
+        return;
+      }
+      
+      // Read position (x, y, z)
+      current_ee_position_.x() = state_interfaces_.at(ee_start_idx + 0).get_value();
+      current_ee_position_.y() = state_interfaces_.at(ee_start_idx + 1).get_value();
+      current_ee_position_.z() = state_interfaces_.at(ee_start_idx + 2).get_value();
+      
+      // Read orientation (quaternion: x, y, z, w)
+      current_ee_orientation_.x() = state_interfaces_.at(ee_start_idx + 3).get_value();
+      current_ee_orientation_.y() = state_interfaces_.at(ee_start_idx + 4).get_value();
+      current_ee_orientation_.z() = state_interfaces_.at(ee_start_idx + 5).get_value();
+      current_ee_orientation_.w() = state_interfaces_.at(ee_start_idx + 6).get_value();
+      
+      ee_interface_available_ = true;
+      
+      RCLCPP_DEBUG(get_node()->get_logger(), 
+                   "EE Pose from interface - Pos: [%.3f, %.3f, %.3f], Quat: [%.3f, %.3f, %.3f, %.3f]",
+                   current_ee_position_.x(), current_ee_position_.y(), current_ee_position_.z(),
+                   current_ee_orientation_.x(), current_ee_orientation_.y(), 
+                   current_ee_orientation_.z(), current_ee_orientation_.w());
+      
+    } catch (const std::exception& e) {
+      if (!ee_interface_available_) {
+        RCLCPP_WARN_ONCE(get_node()->get_logger(), 
+                        "Failed to read EE pose from interfaces: %s. Using FK instead.", e.what());
+      }
+      ee_interface_available_ = false;
     }
   }
 
@@ -84,7 +148,7 @@ namespace franka_example_controllers {
 
   Vector3d ScotsVCZExampleController::find_scots_velocity(const Vector3d& current_position) {
     if (scots_controller_.empty()) {
-      return Vector3d();
+      return Vector3d::Zero();
     }
     Vector3d velocity;
     double min_distance = numeric_limits<double>::max();
@@ -107,22 +171,17 @@ namespace franka_example_controllers {
       RCLCPP_WARN_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 1000,
                           "No matching state found. Current: [%.3f, %.3f, %.3f], Closest distance: %.4f m",
                           current_position.x(), current_position.y(), current_position.z(), min_distance);
-      return Vector3d();
+      return Vector3d::Zero();
     }
 
     const auto& matched_state = scots_controller_[closest_idx];
     velocity = {matched_state.vx, matched_state.vy, matched_state.vz};
-    // RCLCPP_INFO(get_node()->get_logger(), 
-    //              "Matched state [%.3f, %.3f, %.3f] -> velocity [%.3f, %.3f, %.3f] and Current state [%.3f, %.3f, %.3f]",
-    //              matched_state.x, matched_state.y, matched_state.z,
-    //              matched_state.vx, matched_state.vy, matched_state.vz,
-    //              current_position.x(), current_position.y(), current_position.z());
+    
     RCLCPP_DEBUG(get_node()->get_logger(), 
                  "Matched state [%.3f, %.3f, %.3f] -> velocity [%.3f, %.3f, %.3f]",
                  matched_state.x, matched_state.y, matched_state.z,
                  matched_state.vx, matched_state.vy, matched_state.vz);
 
-    // return true;
     return velocity;
   }
 
@@ -159,15 +218,9 @@ namespace franka_example_controllers {
         Matrix4d T_matrix = T_total.matrix() * Ti;
         T_total = Affine3d(T_matrix);
     }
-    
-    // T_total now holds the full 4x4 transformation matrix from the base frame to the end-effector frame (Frame 7).
-    
-    // Optional: Add the transformation for the tool/flange to the end-effector tip
-    // If you need the *exact* TCP, you might need an extra constant transformation T_7_EE.
-    // T_total = T_total * T_7_EE; 
 
     return T_total;
-}
+  }
 
   MatrixXd ScotsVCZExampleController::compute_jacobian(const vector<double>& joint_positions) {
     MatrixXd jacobian(3, 7);
@@ -234,7 +287,8 @@ namespace franka_example_controllers {
     }
     
     if (torque_limit_exceeded) {
-      RCLCPP_WARN_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 2000, "Calculated torques approaching limits! Joint velocities may be too high.");
+      RCLCPP_WARN_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 2000, 
+                          "Calculated torques approaching limits! Joint velocities may be too high.");
     }
 
     RCLCPP_DEBUG(get_node()->get_logger(), 
@@ -251,8 +305,25 @@ namespace franka_example_controllers {
     
     update_counter_++;
     update_joint_states();
-    Affine3d current_transform = forward_kinematics(joint_positions_current_);
-    current_ee_position_ = current_transform.translation();
+    
+    // NEW: Try to get EE pose from interfaces first
+    update_ee_pose_from_interfaces();
+    
+    // If EE interface not available, compute via FK
+    if (!ee_interface_available_ || !use_ee_interface_) {
+      Affine3d current_transform = forward_kinematics(joint_positions_current_);
+      current_ee_position_ = current_transform.translation();
+      current_ee_orientation_ = Quaterniond(current_transform.rotation());
+    }
+
+    // Log which method is being used (once)
+    if (update_counter_ == 1) {
+      if (ee_interface_available_ && use_ee_interface_) {
+        RCLCPP_INFO(get_node()->get_logger(), "Using end-effector pose from state interfaces");
+      } else {
+        RCLCPP_INFO(get_node()->get_logger(), "Using forward kinematics for end-effector pose");
+      }
+    }
 
     if (is_goal_reached(current_ee_position_)) {
       if (!goal_reached_) {
@@ -269,7 +340,9 @@ namespace franka_example_controllers {
     }
 
     if (!is_position_reachable(current_ee_position_)) {
-      RCLCPP_ERROR(get_node()->get_logger(), "End-effector position [%.3f, %.3f, %.3f] is outside workspace limits! Stopping controller.", current_ee_position_.x(), current_ee_position_.y(), current_ee_position_.z());
+      RCLCPP_ERROR(get_node()->get_logger(), 
+                   "End-effector position [%.3f, %.3f, %.3f] is outside workspace limits! Stopping controller.", 
+                   current_ee_position_.x(), current_ee_position_.y(), current_ee_position_.z());
 
       for (int i = 0; i < num_joints_; i++) {
         command_interfaces_[i].set_value(0.0);
@@ -277,43 +350,43 @@ namespace franka_example_controllers {
       return controller_interface::return_type::ERROR;
     }
 
-    Vector3d scots_velocity;
-    bool velocity_found = false;
-    scots_velocity = find_scots_velocity(current_ee_position_);
-    if (scots_velocity == Vector3d()) {
-      velocity_found = true;
-      RCLCPP_INFO(get_node()->get_logger(), "FOUND");
-    }
-    RCLCPP_INFO(get_node()->get_logger(), "CHECK [%.3f, %.3f, %.3f]", scots_velocity.x(), scots_velocity.y(), scots_velocity.z());
-    if (!velocity_found) {
+    Vector3d scots_velocity = find_scots_velocity(current_ee_position_);
+    
+    if (scots_velocity.isZero()) {
       scots_velocity = last_valid_velocity_;
       velocity_lookup_failures_++;
       
       if (velocity_lookup_failures_ > MAX_LOOKUP_FAILURES) {
-        RCLCPP_ERROR(get_node()->get_logger(), "Failed to find matching velocity for %d consecutive updates. Stopping controller.", MAX_LOOKUP_FAILURES);
+        RCLCPP_ERROR(get_node()->get_logger(), 
+                     "Failed to find matching velocity for %d consecutive updates. Stopping controller.", 
+                     MAX_LOOKUP_FAILURES);
 
         for (int i = 0; i < num_joints_; i++) {
           command_interfaces_[i].set_value(0.0);
         }
         return controller_interface::return_type::ERROR;
       }
-      RCLCPP_INFO(get_node()->get_logger(), "Using last valid velocity [%.3f, %.3f, %.3f]", scots_velocity.x(), scots_velocity.y(), scots_velocity.z());
-      RCLCPP_DEBUG(get_node()->get_logger(), "Using last valid velocity [%.3f, %.3f, %.3f]", scots_velocity.x(), scots_velocity.y(), scots_velocity.z());
+      
+      RCLCPP_DEBUG(get_node()->get_logger(), "Using last valid velocity [%.3f, %.3f, %.3f]", 
+                   scots_velocity.x(), scots_velocity.y(), scots_velocity.z());
     } else {
-      last_valid_velocity_ = {0, 0, 0};
+      last_valid_velocity_ = scots_velocity;
       velocity_lookup_failures_ = 0;
     }
 
-    Vector7d tau_command = compute_scots_torque(scots_velocity, joint_positions_current_, joint_velocities_current_);
+    Vector7d tau_command = compute_scots_torque(scots_velocity, joint_positions_current_, 
+                                                joint_velocities_current_);
 
     bool excessive_torque = false;
     for (int i = 0; i < num_joints_; ++i) {
       if (abs(tau_command(i)) > max_joint_torques_(i)) {
-        RCLCPP_ERROR(get_node()->get_logger(), "Calculated torque for joint %d (%.3f Nm) exceeds limit (%.3f Nm)!", i + 1, tau_command(i), max_joint_torques_(i));
+        RCLCPP_ERROR(get_node()->get_logger(), 
+                     "Calculated torque for joint %d (%.3f Nm) exceeds limit (%.3f Nm)!", 
+                     i + 1, tau_command(i), max_joint_torques_(i));
         excessive_torque = true;
       }
     }
-    
+
     if (excessive_torque) {
       for (int i = 0; i < num_joints_; ++i) {
         tau_command(i) = clamp(tau_command(i), -max_joint_torques_(i), max_joint_torques_(i));
@@ -325,25 +398,12 @@ namespace franka_example_controllers {
       command_interfaces_[i].set_value(tau_command(i));
     }
 
-    // RCLCPP_INFO(get_node()->get_logger(), "CMD INT [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f]", 
-    //   command_interfaces_[0].get_value(),
-    //   command_interfaces_[1].get_value(),
-    //   command_interfaces_[2].get_value(),
-    //   command_interfaces_[3].get_value(),
-    //   command_interfaces_[4].get_value(),
-    //   command_interfaces_[5].get_value(),
-    //   command_interfaces_[6].get_value());
-    // RCLCPP_INFO(get_node()->get_logger(), "CMD TAU [%.3f, %.3f, %.3f, %.3f, %.3f, %.3f, %.3f]", 
-    //   tau_command(0),
-    //   tau_command(1),
-    //   tau_command(2),
-    //   tau_command(3),
-    //   tau_command(4),
-    //   tau_command(5),
-    //   tau_command(6));
-
     if (update_counter_ % 1000 == 0) {
-      RCLCPP_INFO(get_node()->get_logger(), "Status - EE pos: [%.3f, %.3f, %.3f], Velocity: [%.3f, %.3f, %.3f]", current_ee_position_.x(), current_ee_position_.y(), current_ee_position_.z(), scots_velocity.x(), scots_velocity.y(), scots_velocity.z());
+      RCLCPP_INFO(get_node()->get_logger(), 
+                  "Status - EE pos: [%.3f, %.3f, %.3f], Velocity: [%.3f, %.3f, %.3f] (from %s)",
+                  current_ee_position_.x(), current_ee_position_.y(), current_ee_position_.z(),
+                  scots_velocity.x(), scots_velocity.y(), scots_velocity.z(),
+                  ee_interface_available_ ? "interface" : "FK");
     }
 
     return controller_interface::return_type::OK;
@@ -353,6 +413,7 @@ namespace franka_example_controllers {
     try {
       auto_declare<string>("arm_id", "fr3");
       auto_declare<bool>("load_gripper", false);
+      auto_declare<bool>("use_ee_interface", true);  // NEW parameter
       auto_declare<string>("scots_controller_path", "");
       auto_declare<double>("rho", 1.0);
       auto_declare<double>("position_tolerance", 0.01);
@@ -368,13 +429,13 @@ namespace franka_example_controllers {
   bool ScotsVCZExampleController::assign_parameters() {
     arm_id_ = get_node()->get_parameter("arm_id").as_string();
     is_gripper_loaded_ = get_node()->get_parameter("load_gripper").as_bool();
+    use_ee_interface_ = get_node()->get_parameter("use_ee_interface").as_bool();
     scots_controller_path_ = get_node()->get_parameter("scots_controller_path").as_string();
     rho_ = get_node()->get_parameter("rho").as_double();
     position_tolerance_ = get_node()->get_parameter("position_tolerance").as_double();
     goal_region_ = get_node()->get_parameter("goal_region").as_double_array();
     workspace_limits_ = get_node()->get_parameter("workspace_limits").as_double_array();
     
-    // Validate parameters
     if (scots_controller_path_.empty()) {
       RCLCPP_FATAL(get_node()->get_logger(), "scots_controller_path parameter not set!");
       return false;
@@ -390,11 +451,11 @@ namespace franka_example_controllers {
       return false;
     }
     
-    // Set max joint torques for FR3 (in Nm)
     max_joint_torques_ << 10.0, 10.0, 10.0, 10.0, 5.0, 5.0, 2.0;
     
     RCLCPP_INFO(get_node()->get_logger(), "Parameters loaded successfully");
     RCLCPP_INFO(get_node()->get_logger(), "SCOTS controller path: %s", scots_controller_path_.c_str());
+    RCLCPP_INFO(get_node()->get_logger(), "Use EE interface: %s", use_ee_interface_ ? "true" : "false");
     RCLCPP_INFO(get_node()->get_logger(), "Goal region: [%.2f-%.2f, %.2f-%.2f, %.2f-%.2f]",
                 goal_region_[0], goal_region_[1], goal_region_[2], 
                 goal_region_[3], goal_region_[4], goal_region_[5]);
@@ -436,10 +497,13 @@ namespace franka_example_controllers {
     goal_reached_ = false;
     update_counter_ = 0;
     velocity_lookup_failures_ = 0;
+    ee_interface_available_ = false;
     
     joint_positions_current_.resize(num_joints_, 0.0);
     joint_velocities_current_.resize(num_joints_, 0.0);
     last_valid_velocity_.setZero();
+    current_ee_position_.setZero();
+    current_ee_orientation_ = Quaterniond::Identity();
 
     RCLCPP_INFO(get_node()->get_logger(), "SCOTS VCZ Controller activated!");
     return CallbackReturn::SUCCESS;
