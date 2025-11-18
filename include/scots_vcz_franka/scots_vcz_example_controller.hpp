@@ -18,9 +18,6 @@
 #include <franka_example_controllers/robot_utils.hpp>
 #include <controller_interface/controller_interface.hpp>
 
-// For hardware: use FrankaCartesianPoseInterface
-// #include "franka_semantic_components/franka_cartesian_pose_interface.hpp"
-
 using namespace std;
 using namespace Eigen;
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
@@ -48,9 +45,9 @@ namespace franka_example_controllers {
 
         private:
             void update_joint_states();
-            void update_ee_pose_from_interfaces();  // NEW: Read EE pose from interfaces
             bool load_scots_controller(const string& csv_file_path);
             Vector3d find_scots_velocity(const Vector3d& current_position);
+            Vector7d calculate_dls_joint_velocity(const MatrixXd& jacobian, const Vector3d& cartesian_velocity);
             MatrixXd compute_jacobian(const vector<double>& joint_positions);
             Affine3d forward_kinematics(const vector<double>& joint_positions);
             double sigmoid(double x);
@@ -58,16 +55,14 @@ namespace franka_example_controllers {
             bool is_position_reachable(const Vector3d& position);
             Vector7d compute_scots_torque(const Vector3d& task_velocity, const vector<double>& joint_positions, const vector<double>& joint_velocities);
             bool assign_parameters();
-            
             string arm_id_;
             string robot_description_;
             string scots_controller_path_;
             bool is_gripper_loaded_ = false;
-            bool use_ee_interface_{true};  // NEW: Flag to use EE interface vs FK
-            
             double rho_{1.0};
             double position_tolerance_{0.01};
             Vector7d max_joint_torques_;
+            Vector3d max_velocity_;
             vector<ScotsState> scots_controller_;
             Vector3d last_valid_velocity_;
             bool controller_loaded_{false};
@@ -78,12 +73,7 @@ namespace franka_example_controllers {
             int num_joints_{7};
             vector<double> joint_positions_current_;
             vector<double> joint_velocities_current_;
-            
-            // NEW: End-effector pose from interfaces
             Vector3d current_ee_position_;
-            Quaterniond current_ee_orientation_;
-            bool ee_interface_available_{false};
-            
             int update_counter_{0};
             int velocity_lookup_failures_{0};
             static constexpr int MAX_LOOKUP_FAILURES = 100;
