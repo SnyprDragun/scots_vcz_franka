@@ -264,10 +264,10 @@ JointImpedanceWithIKExampleController::create_ik_service_request(
   service_request->ik_request.pose_stamped.pose.position.x = position.x();
   service_request->ik_request.pose_stamped.pose.position.y = position.y();
   service_request->ik_request.pose_stamped.pose.position.z = position.z();
-  service_request->ik_request.pose_stamped.pose.orientation.x = orientation.x();
-  service_request->ik_request.pose_stamped.pose.orientation.y = orientation.y();
-  service_request->ik_request.pose_stamped.pose.orientation.z = orientation.z();
-  service_request->ik_request.pose_stamped.pose.orientation.w = orientation.w();
+  service_request->ik_request.pose_stamped.pose.orientation.x = 1;
+  service_request->ik_request.pose_stamped.pose.orientation.y = 0;
+  service_request->ik_request.pose_stamped.pose.orientation.z = 0;
+  service_request->ik_request.pose_stamped.pose.orientation.w = 0;
   
   service_request->ik_request.robot_state.joint_state.name = {
       arm_id_ + "_joint1", arm_id_ + "_joint2", arm_id_ + "_joint3", arm_id_ + "_joint4",
