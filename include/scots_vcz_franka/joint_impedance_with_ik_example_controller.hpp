@@ -70,6 +70,8 @@ class JointImpedanceWithIKExampleController : public controller_interface::Contr
    * @return Eigen::Vector3d calculated sinusoidal period for the x,z position of the pose.
    */
   Eigen::Vector3d compute_new_position();
+  Eigen::Vector3d compute_new_orientation();
+  Eigen::Quaterniond convert_rpy_to_quaternion(const Eigen::Vector3d& rpy_angles);
 
   /**
    * @brief Creates the IK service request for IK service from MoveIt.
@@ -103,6 +105,7 @@ class JointImpedanceWithIKExampleController : public controller_interface::Contr
   // End-effector pose
   Eigen::Quaterniond orientation_;
   Eigen::Vector3d position_;
+  Eigen::Vector3d orientation;
 
   // Controller parameters
   std::string arm_id_;

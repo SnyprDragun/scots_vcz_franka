@@ -20,7 +20,7 @@
 #include <cmath>
 #include <exception>
 #include <string>
-
+#include <fstream>
 #include <Eigen/Eigen>
 
 namespace franka_example_controllers {
@@ -82,34 +82,174 @@ Eigen::Affine3d JointImpedanceWithIKExampleController::forward_kinematics(
 }
 
 Eigen::Vector3d JointImpedanceWithIKExampleController::compute_new_position() {
-  const double radius = 0.1; // 10 cm radius for the circle
-  
-  // Set angular velocity: A full circle (2*M_PI) will take 10 seconds
-  const double angular_velocity = M_PI / 5.0; 
+  static bool trajectory_loaded = false;
+  static std::vector<Eigen::Vector3d> position_steps;
+  static size_t position_index = 0;
+  static const std::string position_filename = "/home/focaslab/SCOTS/SCOTS_ros2_v2/SCOTS/examples/franka/fr3_hw_final/simulated_trajectory_20000.csv";
 
-  // Calculate a continuously increasing angle based on elapsed time
-  // Unlike the original, this angle grows indefinitely, causing continuous rotation
-  double angle = angular_velocity * elapsed_time_; 
+  if (!trajectory_loaded) {
+    std::ifstream position_file(position_filename);
+    if (!position_file.is_open()) {
+      std::cerr << "Error: Could not open trajectory position file: " << position_filename << std::endl;
+      trajectory_loaded = true;
+      return position_;
+    }
 
-  // Calculate the change in X and Y using standard circle equations.
-  // We use (1 - cos(angle)) for X and sin(angle) for Y.
-  // At t=0, angle=0:
-  //   delta_x = 0.1 * (1 - 1) = 0
-  //   delta_y = 0.1 * (0)     = 0
-  // This ensures the motion *starts* at the home position (0,0 delta).
-  double delta_x = radius * (1 - std::cos(angle));
-  double delta_y = radius * std::sin(angle);
+    std::string position_line;
+    if (std::getline(position_file, position_line)) {
+    }
 
-  // Start from the initial home position read during activation
-  Eigen::Vector3d new_position = position_;
+    while (std::getline(position_file, position_line)) {
+      std::stringstream ss(position_line);
+      std::string cell;
+      std::vector<double> coords;
+
+      while (std::getline(ss, cell, ',')) {
+        try {
+          coords.push_back(std::stod(cell));
+        } catch (const std::exception& e) {
+          std::cerr << "Warning: Malformed data in CSV line. Skipping." << std::endl;
+          coords.clear();
+          break;
+        }
+      }
+
+      if (coords.size() == 3) {
+          position_steps.emplace_back(coords[0], coords[1], coords[2]);
+      }
+    }
+
+    if (position_steps.empty()) {
+        std::cerr << "Error: Trajectory file was empty or contained no valid data." << std::endl;
+    } else {
+        std::cout << "Trajectory loaded successfully with " << position_steps.size() << " steps." << std::endl;
+    }
+
+    trajectory_loaded = true;
+  }
+
+  if (!position_steps.empty()) {
+    Eigen::Vector3d new_position_command = position_steps[position_index];
+    position_index++;
+    if (position_index >= position_steps.size()) {
+        position_index = 0;
+    }
+
+    return new_position_command;
+  }
+
+  // const double radius = 0.1; // 10 cm radius for the circle
   
-  // Apply the calculated deltas to the X and Y coordinates
-  new_position.x() += delta_x;
-  new_position.y() += delta_y;
+  // // Set angular velocity: A full circle (2*M_PI) will take 10 seconds
+  // const double angle = M_PI / 4 * (1 - std::cos(M_PI / 5 * elapsed_time_)); // Ramps up and down over 10 seconds 
+
+  // // Calculate a continuously increasing angle based on elapsed time
+  // // Unlike the original, this angle grows indefinitely, causing continuous rotation
+  // // double angle = angular_velocity * elapsed_time_; 
+
+  // // Calculate the change in X and Y using standard circle equations.
+  // // We use (1 - cos(angle)) for X and sin(angle) for Y.
+  // // At t=0, angle=0:
+  // //   delta_x = 0.1 * (1 - 1) = 0
+  // //   delta_y = 0.1 * (0)     = 0
+  // // This ensures the motion *starts* at the home position (0,0 delta).
+  // double delta_x = radius * std::sin(angle);
+  // double delta_z = radius * (std::cos(angle) - 1);
+
+  // // Start from the initial home position read during activation
+  // Eigen::Vector3d new_position = position_;
   
-  // The Z coordinate remains constant at the home position's height
-  // new_position.z() is untouched
-  return new_position;
+  // // Apply the calculated deltas to the X and z coordinates
+  // new_position.x() -= delta_x;
+  // new_position.y() -= delta_z;
+  
+  // // The Z coordinate remains constant at the home position's height
+  // // new_position.z() is untouched
+  // return new_position;
+}
+
+Eigen::Vector3d JointImpedanceWithIKExampleController::compute_new_orientation() {
+  static bool trajectory_loaded = false;
+  static std::vector<Eigen::Vector3d> orientation_steps;
+  static size_t orientation_index = 0;
+  static const std::string orientation_filename = "/home/focaslab/SCOTS/SCOTS_ros2_v2/SCOTS/examples/franka/fr3_hw_final/simulated_orientation_20000.csv";
+  orientation = {0.0, 0.0, 0.0};
+
+  if (!trajectory_loaded) {
+    std::ifstream orientation_file(orientation_filename);
+    if (!orientation_file.is_open()) {
+      std::cerr << "Error: Could not open trajectory orientation file: " << orientation_filename << std::endl;
+      trajectory_loaded = true;
+      return orientation;
+    }
+
+    std::string orientation_line;
+    if (std::getline(orientation_file, orientation_line)) {
+    }
+
+    while (std::getline(orientation_file, orientation_line)) {
+      std::stringstream ss(orientation_line);
+      std::string cell;
+      std::vector<double> coords;
+
+      while (std::getline(ss, cell, ',')) {
+        try {
+          coords.push_back(std::stod(cell));
+        } catch (const std::exception& e) {
+          std::cerr << "Warning: Malformed data in CSV line. Skipping." << std::endl;
+          coords.clear();
+          break;
+        }
+      }
+
+      if (coords.size() == 3) {
+          orientation_steps.emplace_back(coords[0], coords[1], coords[2]);
+      }
+    }
+
+    if (orientation_steps.empty()) {
+        std::cerr << "Error: Trajectory file was empty or contained no valid data." << std::endl;
+    } else {
+        std::cout << "Trajectory loaded successfully with " << orientation_steps.size() << " steps." << std::endl;
+    }
+
+    trajectory_loaded = true;
+  }
+
+  if (!orientation_steps.empty()) {
+    Eigen::Vector3d new_orientation_command = orientation_steps[orientation_index];
+    orientation_index++;
+    if (orientation_index >= orientation_steps.size()) {
+        orientation_index = 0;
+    }
+
+    return orientation;
+    // return new_orientation_command;
+  } 
+}
+
+Eigen::Quaterniond JointImpedanceWithIKExampleController::convert_rpy_to_quaternion(const Eigen::Vector3d& rpy_angles) {
+    // Eigen's AngleAxis is a robust way to create rotations.
+    // We concatenate three simple rotations (Z-Y-X sequence is common for RPY)
+    // The order of multiplication matters: R = R_z * R_y * R_x
+    
+    Eigen::AngleAxisd roll_angle(rpy_angles(0), Eigen::Vector3d::UnitX());
+    Eigen::AngleAxisd pitch_angle(rpy_angles(1), Eigen::Vector3d::UnitY());
+    Eigen::AngleAxisd yaw_angle(rpy_angles(2), Eigen::Vector3d::UnitZ());
+
+    // Construct the quaternion: Q = Q_z * Q_y * Q_x (extrinsic)
+    // Or Q = Q_x * Q_y * Q_z (intrinsic, which is more common in robotics)
+    // The code below uses the intrinsic ZYX (Yaw-Pitch-Roll) convention,
+    // which is often denoted as R = R_z * R_y * R_x in matrix form.
+    
+    // Note: Eigen also allows direct conversion using: 
+    // Eigen::Matrix3d R = (yaw_angle * pitch_angle * roll_angle).toRotationMatrix();
+    // return Eigen::Quaterniond(R);
+    
+    Eigen::Quaterniond q = yaw_angle * pitch_angle * roll_angle;
+    
+    // Ensure the quaternion is normalized before returning
+    return q.normalized();
 }
 
 std::shared_ptr<moveit_msgs::srv::GetPositionIK::Request>
@@ -137,6 +277,9 @@ JointImpedanceWithIKExampleController::create_ik_service_request(
   if (is_gripper_loaded_) {
     service_request->ik_request.ik_link_name = arm_id_ + "_hand_tcp";
   }
+
+  RCLCPP_INFO(get_node()->get_logger(), "Orientation (%.3f, %.3f, %.3f, %.3f)", orientation.x(), orientation.y(), orientation.z(), orientation.w());
+  RCLCPP_INFO(get_node()->get_logger(), "Position (%.3f, %.3f, %.3f)", position.x(), position.y(), position.z());
   
   return service_request;
 }
@@ -145,13 +288,35 @@ Eigen::Matrix<double, 7, 1> JointImpedanceWithIKExampleController::compute_torqu
     const Eigen::Matrix<double, 7, 1>& joint_positions_desired,
     const Eigen::Matrix<double, 7, 1>& joint_positions_current,
     const Eigen::Matrix<double, 7, 1>& joint_velocities_current) {
-  
+
   const double kAlpha = 0.99;
   dq_filtered_ = (1 - kAlpha) * dq_filtered_ + kAlpha * joint_velocities_current;
   
-  Eigen::Matrix<double, 7, 1> q_error = joint_positions_desired - joint_positions_current;
-  Eigen::Matrix<double, 7, 1> tau_d_calculated =
-      k_gains_.cwiseProduct(q_error) - d_gains_.cwiseProduct(dq_filtered_);
+  // Eigen::Matrix<double, 7, 1> q_error = joint_positions_desired - joint_positions_current;
+  // Eigen::Matrix<double, 7, 1> tau_d_calculated = k_gains_.cwiseProduct(q_error) - d_gains_.cwiseProduct(dq_filtered_);
+
+  Vector7d taub = {10, 10 ,10 ,10, 5 ,5, 2}; // Joint Torque Bounds for external force
+  Vector7d vb = {2, 2, 2, 2, 2.5, 1.5, 1}; // Joint Velocity Bounds
+
+  Vector7d psi1 = {0, 0, 0, 0, 0, 0, 0};
+  Vector7d psi2 = {0, 0, 0, 0, 0, 0, 0};
+
+  double sigma = 0.1;
+  double rho = 1;
+
+  // double e = 0.0;
+  for (int i = 0; i < 7; ++i) {
+    double e = (joint_positions_current[i] - joint_positions_desired[i])/sigma;
+    // if (i == 6) { 
+    //   double e = (joint_positions_current[i])/sigma;
+    // }
+    psi1[i] = pow((tanh(e)),1);
+    psi2[i] = tanh((dq_filtered_[i] + vb[i]*psi1[i])/rho);
+  }
+
+  // Calculate the desired torques
+  // Vector7d tau_d_calculated = k_gains_.cwiseProduct(q_desired - q_) + d_gains_.cwiseProduct(-dq_filtered_);
+  Vector7d tau_d_calculated = -taub.cwiseProduct(psi2);
 
   return tau_d_calculated;
 }
@@ -163,9 +328,9 @@ controller_interface::return_type JointImpedanceWithIKExampleController::update(
   if (initialization_flag_) {
     // Get initial position from forward kinematics
     update_joint_states();
-    Eigen::Affine3d initial_transform = forward_kinematics(joint_positions_current_);
-    position_ = initial_transform.translation();
-    orientation_ = Eigen::Quaterniond(initial_transform.rotation());
+    // Eigen::Affine3d initial_transform = forward_kinematics(joint_positions_current_);
+    // position_ = initial_transform.translation();
+    // orientation_ = Eigen::Quaterniond(initial_transform.rotation());
     
     elapsed_time_ = 0.0;
     initialization_flag_ = false;
@@ -176,6 +341,8 @@ controller_interface::return_type JointImpedanceWithIKExampleController::update(
   update_joint_states();
 
   Eigen::Vector3d new_position = compute_new_position();
+  Eigen::Vector3d new_orientation = compute_new_orientation();
+  Eigen::Quaterniond orientation_ = convert_rpy_to_quaternion(new_orientation);
 
   auto service_request = create_ik_service_request(
       new_position, orientation_, joint_positions_current_);
