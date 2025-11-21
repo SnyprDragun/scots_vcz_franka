@@ -85,7 +85,7 @@ Eigen::Vector3d JointImpedanceWithIKExampleController::compute_new_position() {
   static bool trajectory_loaded = false;
   static std::vector<Eigen::Vector3d> position_steps;
   static size_t position_index = 0;
-  static const std::string position_filename = "/home/focaslab/SCOTS/SCOTS_ros2_v2/SCOTS/examples/franka/fr3_hw_final/simulated_trajectory_20000.csv";
+  static const std::string position_filename = "/home/focaslab/SCOTS/SCOTS_ros2_v2/SCOTS/examples/franka/fr3_hw_final/fr3_hw_ex_2_final.csv";
 
   if (!trajectory_loaded) {
     std::ifstream position_file(position_filename);
@@ -270,15 +270,19 @@ JointImpedanceWithIKExampleController::create_ik_service_request(
   service_request->ik_request.pose_stamped.pose.orientation.w = 0;
   
   service_request->ik_request.robot_state.joint_state.name = {
-      arm_id_ + "_joint1", arm_id_ + "_joint2", arm_id_ + "_joint3", arm_id_ + "_joint4",
-      arm_id_ + "_joint5", arm_id_ + "_joint6", arm_id_ + "_joint7"};
+    arm_id_ + "_joint1", arm_id_ + "_joint2", arm_id_ + "_joint3", arm_id_ + "_joint4",
+    arm_id_ + "_joint5", arm_id_ + "_joint6", arm_id_ + "_joint7"};
   service_request->ik_request.robot_state.joint_state.position = joint_positions_current;
 
   if (is_gripper_loaded_) {
     service_request->ik_request.ik_link_name = arm_id_ + "_hand_tcp";
   }
 
-  RCLCPP_INFO(get_node()->get_logger(), "Orientation (%.3f, %.3f, %.3f, %.3f)", orientation.x(), orientation.y(), orientation.z(), orientation.w());
+  RCLCPP_INFO(get_node()->get_logger(), "Orientation (%.3f, %.3f, %.3f, %.3f)", 
+    service_request->ik_request.pose_stamped.pose.orientation.x, 
+    service_request->ik_request.pose_stamped.pose.orientation.y, 
+    service_request->ik_request.pose_stamped.pose.orientation.z, 
+    service_request->ik_request.pose_stamped.pose.orientation.w);
   RCLCPP_INFO(get_node()->get_logger(), "Position (%.3f, %.3f, %.3f)", position.x(), position.y(), position.z());
   
   return service_request;
