@@ -172,7 +172,7 @@ namespace franka_example_controllers {
     update_joint_states();
 
     Vector3d new_position = compute_new_position();
-    Quaterniond new_orientation = {1, 0, 0, 0};
+    Quaterniond new_orientation = {0, 1, 0, 0};
 
     auto service_request = create_ik_service_request(
         new_position, new_orientation, joint_positions_current_);
