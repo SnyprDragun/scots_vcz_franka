@@ -44,8 +44,8 @@ namespace franka_example_controllers {
     static double segment_elapsed = 0.0;
     static constexpr double segment_duration = 0.01;
     double dt = 0.001;
-    static const string position_filename = "/home/focaslab/SCOTS/SCOTS_ros2_v2/SCOTS/examples/franka/final_examples/example_1_files/example_1_final_trajectory.csv";
-    // static const string position_filename = "/home/focaslab/SCOTS/SCOTS_ros2_v2/SCOTS/examples/franka/final_examples/example_1_files/example_2_final_trajectory.csv";
+    static const string position_filename = "~/ros2_ws/src/scots_vcz_franka/final_examples/example_1 files/example_1_final_trajectory.csv";
+    // static const string position_filename = "~/ros2_ws/src/scots_vcz_franka/final_examples/example_1 files/example_2_final_trajectory.csv";
 
     if (!trajectory_loaded) {
       ifstream position_file(position_filename);
