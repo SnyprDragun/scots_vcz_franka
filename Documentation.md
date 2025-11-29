@@ -27,7 +27,7 @@ src/custom_controller.cpp
 </class>
 ```
 
-**NOTE**: `CustomController` refers to the main class inside `custom_controller.cpp`
+>**NOTE**: `CustomController` refers to the main class inside `custom_controller.cpp`
 
 
 ### For Simulation using gazebo and rviz
@@ -62,3 +62,36 @@ ros2 launch franka_gazebo_bringup gazebo_custom_controller_example.launch.py loa
 
 ### For Hardware Implementation
 --to do--
+
+### SCOTS
+Time taken by scots to generate controller for each specification fragment (all time in seconds):
+* **Example 1**: *Maze*
+    > Start to Goal
+    * Computing Transition Funtion: 132.262
+    * Controller Synthesis: 68.6225
+    * *TOTAL: 200.8875*
+
+* **Example 1**: *Pick and Place*
+    > T4 to T2
+    * Computing Transition Funtion: 152.11
+    * Controller Synthesis: 69.504
+    * TOTAL: 221.614
+
+    > T2 to T1
+    * Computing Transition Funtion: 154.269
+    * Controller Synthesis: 68.5645
+    * TOTAL: 222.8335
+
+    > T1 to T3
+    * Computing Transition Funtion: 155.052
+    * Controller Synthesis: 67.5609
+    * TOTAL: 222.6129
+
+    > T3 to T4
+    * Computing Transition Funtion: 154.521
+    * Controller Synthesis: 65.9707
+    * TOTAL: 220.4917
+
+    * *TOTAL: 887.5221*
+>**NOTE**: `Example 2` fragments can be run parallely, takes <4 mins. 
+---
