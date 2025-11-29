@@ -1,8 +1,8 @@
-#include <franka_example_controllers/joint_impedance_with_ik_example_controller.hpp>
+#include <franka_example_controllers/scots_vcz_sil_example_controller.hpp>
 
 namespace franka_example_controllers {
 
-  controller_interface::InterfaceConfiguration JointImpedanceWithIKExampleController::command_interface_configuration() const {
+  controller_interface::InterfaceConfiguration ScotsVczSILExampleController::command_interface_configuration() const {
     controller_interface::InterfaceConfiguration config;
     config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
     for (int i = 1; i <= num_joints_; ++i) {
@@ -11,7 +11,7 @@ namespace franka_example_controllers {
     return config;
   }
 
-  controller_interface::InterfaceConfiguration JointImpedanceWithIKExampleController::state_interface_configuration() const {
+  controller_interface::InterfaceConfiguration ScotsVczSILExampleController::state_interface_configuration() const {
     controller_interface::InterfaceConfiguration config;
     config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
 
@@ -25,7 +25,7 @@ namespace franka_example_controllers {
     return config;
   }
 
-  void JointImpedanceWithIKExampleController::update_joint_states() {
+  void ScotsVczSILExampleController::update_joint_states() {
     for (auto i = 0; i < num_joints_; ++i) {
       const auto& position_interface = state_interfaces_.at(i);
       const auto& velocity_interface = state_interfaces_.at(num_joints_ + i);
@@ -38,7 +38,7 @@ namespace franka_example_controllers {
     }
   }
 
-  Vector3d JointImpedanceWithIKExampleController::compute_new_position() {
+  Vector3d ScotsVczSILExampleController::compute_new_position() {
     static bool trajectory_loaded = false;
     static vector<Vector3d> position_steps;
     static double segment_elapsed = 0.0;
@@ -108,7 +108,7 @@ namespace franka_example_controllers {
     return new_position_command;
   }
 
-  shared_ptr<moveit_msgs::srv::GetPositionIK::Request> JointImpedanceWithIKExampleController::create_ik_service_request(const Vector3d& position, const Quaterniond& orientation, const vector<double>& joint_positions_current) {
+  shared_ptr<moveit_msgs::srv::GetPositionIK::Request> ScotsVczSILExampleController::create_ik_service_request(const Vector3d& position, const Quaterniond& orientation, const vector<double>& joint_positions_current) {
     auto service_request = make_shared<moveit_msgs::srv::GetPositionIK::Request>();
 
     service_request->ik_request.group_name = arm_id_ + "_arm";
@@ -133,7 +133,7 @@ namespace franka_example_controllers {
     return service_request;
   }
 
-  Vector7d JointImpedanceWithIKExampleController::compute_torque_command(const Vector7d& joint_positions_desired, const Vector7d& joint_positions_current, const Vector7d& joint_velocities_current) {
+  Vector7d ScotsVczSILExampleController::compute_torque_command(const Vector7d& joint_positions_desired, const Vector7d& joint_positions_current, const Vector7d& joint_velocities_current) {
 
     const double kAlpha = 0.99;
     dq_filtered_ = (1 - kAlpha) * dq_filtered_ + kAlpha * joint_velocities_current;
@@ -159,7 +159,7 @@ namespace franka_example_controllers {
     return tau_d_calculated;
   }
 
-  controller_interface::return_type JointImpedanceWithIKExampleController::update(const rclcpp::Time& /*time*/, const rclcpp::Duration& period) {
+  controller_interface::return_type ScotsVczSILExampleController::update(const rclcpp::Time& /*time*/, const rclcpp::Duration& period) {
     
     if (initialization_flag_) {
       update_joint_states();
@@ -175,8 +175,7 @@ namespace franka_example_controllers {
     Vector3d new_position = compute_new_position();
     Quaterniond new_orientation = {0, 1, 0, 0};
 
-    auto service_request = create_ik_service_request(
-        new_position, new_orientation, joint_positions_current_);
+    auto service_request = create_ik_service_request(new_position, new_orientation, joint_positions_current_);
 
     using ServiceResponseFuture = rclcpp::Client<moveit_msgs::srv::GetPositionIK>::SharedFuture;
     auto response_received_callback =
@@ -211,7 +210,7 @@ namespace franka_example_controllers {
     return controller_interface::return_type::OK;
   }
 
-  CallbackReturn JointImpedanceWithIKExampleController::on_init() {
+  CallbackReturn ScotsVczSILExampleController::on_init() {
     try {
       auto_declare<string>("arm_id", "");
       auto_declare<vector<double>>("k_gains", {});
@@ -224,7 +223,7 @@ namespace franka_example_controllers {
     return CallbackReturn::SUCCESS;
   }
 
-  bool JointImpedanceWithIKExampleController::assign_parameters() {
+  bool ScotsVczSILExampleController::assign_parameters() {
     arm_id_ = get_node()->get_parameter("arm_id").as_string();
     is_gripper_loaded_ = get_node()->get_parameter("load_gripper").as_bool();
 
@@ -253,7 +252,7 @@ namespace franka_example_controllers {
     return true;
   }
 
-  CallbackReturn JointImpedanceWithIKExampleController::on_configure(const rclcpp_lifecycle::State& /*previous_state*/) {
+  CallbackReturn ScotsVczSILExampleController::on_configure(const rclcpp_lifecycle::State& /*previous_state*/) {
     
     if (!assign_parameters()) {
       return CallbackReturn::FAILURE;
@@ -286,7 +285,7 @@ namespace franka_example_controllers {
     return CallbackReturn::SUCCESS;
   }
 
-  CallbackReturn JointImpedanceWithIKExampleController::on_activate(const rclcpp_lifecycle::State& /*previous_state*/) {
+  CallbackReturn ScotsVczSILExampleController::on_activate(const rclcpp_lifecycle::State& /*previous_state*/) {
     
     initialization_flag_ = true;
     elapsed_time_ = 0.0;
@@ -302,4 +301,4 @@ namespace franka_example_controllers {
 }
 
 #include "pluginlib/class_list_macros.hpp"
-PLUGINLIB_EXPORT_CLASS(franka_example_controllers::JointImpedanceWithIKExampleController, controller_interface::ControllerInterface)
+PLUGINLIB_EXPORT_CLASS(franka_example_controllers::ScotsVczSILExampleController, controller_interface::ControllerInterface)

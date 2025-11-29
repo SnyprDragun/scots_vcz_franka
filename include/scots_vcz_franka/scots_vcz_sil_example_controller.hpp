@@ -19,7 +19,7 @@ using Vector7d = Matrix<double, 7, 1>;
 using CallbackReturn = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
 namespace franka_example_controllers {
-    class JointImpedanceWithIKExampleController : public controller_interface::ControllerInterface {
+    class ScotsVczSILExampleController : public controller_interface::ControllerInterface {
         public:
             [[nodiscard]] controller_interface::InterfaceConfiguration command_interface_configuration() const override;
             [[nodiscard]] controller_interface::InterfaceConfiguration state_interface_configuration() const override;
