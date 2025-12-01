@@ -1,7 +1,7 @@
 # SCOTS-VCZ Aided Manipulator Motion using Franka Research 3 Robot
 
-## Overview
-Through this repo we simulate an example that demonstrates a novel control law for 2nd order Euler-Lagrange systems (Robotic Arm). We use SCoTs (Symbolic Control Toolbox) to generate controller for EE (end effector) pose (position + orientation) for a reach avoid task in the robot's reachable state space. We then use Virtual Confinement Zone (VCZ) control law to generate torque commands in robot's joint space, which formally gurantees adherence to EE trajectory prescribed by SCoTs.
+<!--## Overview
+Through this repo we simulate an example that demonstrates a novel control law for 2nd order Euler-Lagrange systems (Robotic Arm). We use SCoTs (Symbolic Control Toolbox) to generate controller for EE (end effector) pose (position + orientation) for a reach avoid task in the robot's reachable state space. We then use Virtual Confinement Zone (VCZ) control law to generate torque commands in robot's joint space, which formally gurantees adherence to EE trajectory prescribed by SCoTs.-->
 
 ## Requirements
 * [Ubuntu 22.04 LTS](https://releases.ubuntu.com/jammy/)
