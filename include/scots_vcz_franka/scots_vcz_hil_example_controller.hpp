@@ -80,8 +80,6 @@ namespace franka_example_controllers {
             const string k_robot_model_interface_name{"robot_model"};
             Vector7d dq_filtered_;
             rclcpp::Time start_time_;
-            Vector7d k_gains_;
-            Vector7d d_gains_;
             int num_joints_{7};
             vector<double> joint_positions_desired_;
             vector<double> joint_positions_current_{0, 0, 0, 0, 0, 0, 0};
