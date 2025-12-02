@@ -1,4 +1,4 @@
-#include <franka_example_controllers/scots_vcz_sil_example_controller.hpp>
+#include <franka_example_controllers/scots_vcz_hil_example_controller.hpp>
 
 namespace franka_example_controllers {
 
@@ -52,8 +52,8 @@ namespace franka_example_controllers {
     double dt = 0.001;
 
     if (!trajectory_loaded) {
-      ifstream file("~/ros2_ws/src/scots_vcz_franka/final_examples/example_1 files/example_1_final_trajectory_gripper.csv");
-      ifstream file("~/ros2_ws/src/scots_vcz_franka/final_examples/example_2 files/example_2_final_trajectory_gripper.csv");
+    //   ifstream file("/home/focaslab/stt_lfd_franka_ws/src/franka_example_controllers/scripts/VCZ/final_examples/example_1 files/example_1_final_trajectory_gripper.csv");
+      ifstream file("/home/focaslab/stt_lfd_franka_ws/src/franka_example_controllers/scripts/VCZ/final_examples/example_2 files/example_2_final_trajectory_gripper.csv");
       
       string line;
       getline(file, line);
@@ -133,7 +133,7 @@ namespace franka_example_controllers {
     return service_request;
   }
 
-  ScotsVczHILExampleController::Vector7d ScotsVczHILExampleController::compute_torque_command(const Vector7d& joint_positions_desired, const Vector7d& joint_positions_current, const Vector7d& joint_velocities_current) {
+  Vector7d ScotsVczHILExampleController::compute_torque_command(const Vector7d& joint_positions_desired, const Vector7d& joint_positions_current, const Vector7d& joint_velocities_current) {
 
     const double kAlpha = 0.99;
     dq_filtered_ = (1 - kAlpha) * dq_filtered_ + kAlpha * joint_velocities_current;
@@ -159,7 +159,7 @@ namespace franka_example_controllers {
     return tau_d_calculated;
   }
 
-  controller_interface::return_type ScotsVczHILExampleController::update(const rclcpp::Time& /*time*/, const rclcpp::Duration& period) {
+  controller_interface::return_type ScotsVczHILExampleController::update(const rclcpp::Time& /*time*/, const rclcpp::Duration& /*period*/) {
     if (initialization_flag_) {
       initial_robot_time_ = state_interfaces_.back().get_value();
       initialization_flag_ = false;
@@ -186,8 +186,7 @@ namespace franka_example_controllers {
             RCLCPP_INFO(get_node()->get_logger(), "Inverse kinematics solution failed.");
           }
         };
-    auto result_future_ =
-        compute_ik_client_->async_send_request(service_request, response_received_callback);
+    auto result_future_ = compute_ik_client_->async_send_request(service_request, response_received_callback);
 
     if (joint_positions_desired_.empty()) {
       return controller_interface::return_type::OK;
@@ -197,8 +196,7 @@ namespace franka_example_controllers {
     Vector7d joint_positions_current_eigen(joint_positions_current_.data());
     Vector7d joint_velocities_current_eigen(joint_velocities_current_.data());
 
-    auto tau_d_calculated = compute_torque_command(
-        joint_positions_desired_eigen, joint_positions_current_eigen, joint_velocities_current_eigen);
+    auto tau_d_calculated = compute_torque_command(joint_positions_desired_eigen, joint_positions_current_eigen, joint_velocities_current_eigen);
 
     for (int i = 0; i < num_joints_; i++) {
       command_interfaces_[i].set_value(tau_d_calculated(i));
@@ -225,29 +223,6 @@ namespace franka_example_controllers {
   bool ScotsVczHILExampleController::assign_parameters() {
     arm_id_ = get_node()->get_parameter("arm_id").as_string();
     is_gripper_loaded_ = get_node()->get_parameter("load_gripper").as_bool();
-
-    auto k_gains = get_node()->get_parameter("k_gains").as_double_array();
-    auto d_gains = get_node()->get_parameter("d_gains").as_double_array();
-    if (k_gains.empty()) {
-      RCLCPP_FATAL(get_node()->get_logger(), "k_gains parameter not set");
-      return false;
-    }
-    if (k_gains.size() != static_cast<uint>(num_joints_)) {
-      RCLCPP_FATAL(get_node()->get_logger(), "k_gains should be of size %d but is of size %ld", num_joints_, k_gains.size());
-      return false;
-    }
-    if (d_gains.empty()) {
-      RCLCPP_FATAL(get_node()->get_logger(), "d_gains parameter not set");
-      return false;
-    }
-    if (d_gains.size() != static_cast<uint>(num_joints_)) {
-      RCLCPP_FATAL(get_node()->get_logger(), "d_gains should be of size %d but is of size %ld", num_joints_, d_gains.size());
-      return false;
-    }
-    for (int i = 0; i < num_joints_; ++i) {
-      d_gains_(i) = d_gains.at(i);
-      k_gains_(i) = k_gains.at(i);
-    }
     return true;
   }
 
