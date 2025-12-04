@@ -10,7 +10,9 @@ class JointAndEELogger(Node):
     def __init__(self, logging_rate_hz=10):
         super().__init__('joint_and_ee_logger')
 
+        # self.output_file = os.path.join(os.path.dirname(__file__), 'example_1_joint_ee_log.csv')
         self.output_file = os.path.join(os.path.dirname(__file__), 'example_2_joint_ee_log.csv')
+
         self.csv_file = open(self.output_file, 'w', newline='')
         self.csv_writer = csv.writer(self.csv_file)
         header = (['elapsed_time'] + [f'joint_{i+1} state' for i in range(7)] + [f'joint_{i+1} torque' for i in range(7)] + ['ee_x', 'ee_y', 'ee_z'])
