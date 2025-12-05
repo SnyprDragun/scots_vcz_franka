@@ -52,8 +52,8 @@ namespace franka_example_controllers {
     double dt = 0.001;
 
     if (!trajectory_loaded) {
-    //   ifstream file("/home/focaslab/stt_lfd_franka_ws/src/franka_example_controllers/scripts/VCZ/final_examples/example_1 files/example_1_final_trajectory_gripper.csv");
-      ifstream file("/home/focaslab/stt_lfd_franka_ws/src/franka_example_controllers/scripts/VCZ/final_examples/example_2 files/example_2_final_trajectory_gripper.csv");
+      ifstream file("/home/focaslab/ros2_ws/src/scots_vcz_franka/final_examples/example_1 files/example_1_final_trajectory_gripper.csv");
+      // ifstream file("/home/focaslab/ros2_ws/src/scots_vcz_franka/final_examples/example_2 files/example_2_final_trajectory_gripper.csv");
       
       string line;
       getline(file, line);
@@ -134,6 +134,28 @@ namespace franka_example_controllers {
   }
 
   Vector7d ScotsVczHILExampleController::compute_torque_command(const Vector7d& joint_positions_desired, const Vector7d& joint_positions_current, const Vector7d& joint_velocities_current) {
+    static ofstream csv_file;
+    static bool is_header_written = false;
+    static const auto start_time = chrono::steady_clock::now();
+
+    if (!csv_file.is_open()) {
+    //========= SCOTS =========//
+      csv_file.open("example_1_effort_log.csv", ios::out | ios::app);
+      // csv_file.open("example_1_effort_log_disturbance.csv", ios::out | ios::app);
+      // csv_file.open("example_2_effort_log.csv", ios::out | ios::app);
+      // csv_file.open("example_2_effort_log_disturbance.csv", ios::out | ios::app);
+
+      if (!csv_file.is_open()) {
+        cerr << "Error: Could not open torque_log.csv for writing." << endl;
+      }
+    }
+
+    double timestamp_seconds = 0.0;
+    if (csv_file.is_open()) {
+      auto current_time = chrono::steady_clock::now();
+      auto duration = chrono::duration_cast<chrono::duration<double>>(current_time - start_time);
+      timestamp_seconds = duration.count();
+    }
 
     const double kAlpha = 0.99;
     dq_filtered_ = (1 - kAlpha) * dq_filtered_ + kAlpha * joint_velocities_current;
@@ -150,11 +172,29 @@ namespace franka_example_controllers {
     for (int i = 0; i < 7; ++i) {
       double e = (joint_positions_current[i] - joint_positions_desired[i])/sigma;
 
-      psi1[i] = pow((tanh(e)),1);
+      psi1[i] = pow((tanh(e)), 1.0);
       psi2[i] = tanh((dq_filtered_[i] + vb[i]*psi1[i])/rho);
     }
 
     Vector7d tau_d_calculated = -taub.cwiseProduct(psi2);
+
+    if (csv_file.is_open()) {
+      if (!is_header_written) {
+        csv_file << "timestamp_s,tau_1,tau_2,tau_3,tau_4,tau_5,tau_6,tau_7\n";
+        is_header_written = true;
+      }
+
+      csv_file << timestamp_seconds;
+      csv_file << ",";
+
+      for (int i = 0; i < 7; ++i) {
+        csv_file << tau_d_calculated[i];
+        if (i < 6) {
+          csv_file << ",";
+        }
+      }
+      csv_file << "\n";
+    }
 
     return tau_d_calculated;
   }
