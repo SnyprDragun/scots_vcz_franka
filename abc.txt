@@ -1,0 +1,23 @@
+Me: Any other thing that i need to consider for the examples?
+Guide: This is what the table should look like
+| Method   | Computation Time | Task Success (Nominal Condition) | Task Success (Perturbed Condition) |
+| -------- | ------------------ | ---------------------------------- | ------------------------------------ |
+| Proposed | XX \pm XX s       | XX%                                | XX%                                  |
+| SCOTS    | XX \pm XX s       | XX%                                | XX%                                  |
+| FasTrack | XX \pm XX s       | XX%                                | XX%                                  |
+So we can vary this perturbed mass and see success percentage
+For proposed it should be 100 throughout
+For Nominal it should be 100 for all
+And for perturbed it should go down for SCOTS and FAstrack
+Me: How is the success percentage calculated?
+Guide: For perturbed case
+if the end effector is reaching the taget or not
+So its a 0-100 binary?
+like if you run it 10 times for mass 1 gm to 1kg
+Then for some masses it will reach and for some it won't
+Also I expect SCOTS computation time to be in hours
+So you can just interpolate
+7 joint positions + 7 velocities = 14-dimensional state
+
+Like do it for 2r and 3r and then just interpolate exponentially
+Okay 👍
